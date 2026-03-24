@@ -1,35 +1,30 @@
 import streamlit as st
-import cv2
+from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 import mediapipe as mp
+import cv2
 
-st.title("Posture Detection (MediaPipe)")
-
-run = st.checkbox("Start Kamera")
+st.title("Posture Detection (MediaPipe Online)")
 
 mp_pose = mp.solutions.pose
 mp_drawing = mp.solutions.drawing_utils
 
-FRAME_WINDOW = st.image([])
+class PoseTransformer(VideoTransformerBase):
+    def __init__(self):
+        self.pose = mp_pose.Pose()
 
-cap = cv2.VideoCapture(0)
+    def transform(self, frame):
+        img = frame.to_ndarray(format="bgr24")
 
-with mp_pose.Pose() as pose:
-    while run:
-        ret, frame = cap.read()
-        if not ret:
-            st.write("Keine Kamera gefunden")
-            break
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(frame)
+        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        results = self.pose.process(img_rgb)
 
         if results.pose_landmarks:
             mp_drawing.draw_landmarks(
-                frame,
+                img,
                 results.pose_landmarks,
                 mp_pose.POSE_CONNECTIONS
             )
 
-        FRAME_WINDOW.image(frame)
+        return img
 
-cap.release()
+webrtc_streamer(key="pose", video_transformer_factory=PoseTransformer)
